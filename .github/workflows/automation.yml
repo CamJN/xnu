@@ -1,0 +1,51 @@
+name: automation
+
+on:
+  schedule:
+    - cron:  '0 1 * * *'
+  workflow_dispatch:
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  scrape:
+    name: scrape website
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout data
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          path: 'repo'
+          clean: true
+      - name: prep env
+        run: |
+          sudo apt-get install -y libxml2-utils
+          mkdir -p data
+          cd repo
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+      - name: Scrape data
+        run: 'curl -sSL https://opensource.apple.com/source/xnu/ | xmllint --html --xpath ''.//a[starts-with(@href,"xnu")]/@href'' - | tr " " "\n" | sed -Ee ''s@href="xnu-([^"]+)/"@\1@g'' | sort -u | grep -vf <(git -C repo tag | sed -Ee ''s/v(.*)/^\1$/g'' ) | xargs -I{} curl -o ./data/xnu-{}.tgz "https://opensource.apple.com/tarballs/xnu/xnu-{}.tar.gz"'
+      - name: loop and upload
+        run: |
+          for f in $(ls data/xnu-* | sort -V); do
+          mv $f ./
+          gunzip xnu-*.tgz
+          tar -xf xnu-*.tar
+          rm xnu-*.tar
+          ver=$(ls -d xnu-* | sed -Ee 's/xnu-(.*)/\1/g' )
+          pushd xnu-${ver}
+          mv ../repo/.git .
+          mv ../repo/.github .
+          rm -rf ../repo
+          git add .
+          git commit -m "Version ${ver}"
+          git tag v${ver}
+          git push origin
+          git push origin --tags
+          popd
+          mv xnu-${ver} repo
+          done
