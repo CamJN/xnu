@@ -29,6 +29,7 @@ jobs:
           git config user.email github-actions@github.com
       - name: Scrape data
         run: |
+          set -x
           TAGS=($(git -C repo tag | sed -Ee 's/v(.*)/\1/g' | sort -u))
           LAST_TAG=$(git -C repo tag | sed -Ee 's/v(.*)/\1/g' | sort -Vru | head -1)
           VERSIONS=($(xmllint --html --shell <(curl -sSL https://opensource.apple.com/source/xnu/) <<< 'cat .//a[starts-with(@href,"xnu")]/@href' | fgrep href | sed -Ee 's@.*xnu-([^"/]+)[/"].*@\1@g' | sort -u))
