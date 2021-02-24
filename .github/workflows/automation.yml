@@ -29,8 +29,8 @@ jobs:
           git config user.email github-actions@github.com
       - name: Scrape data
         run: |
-          TAGS=($(git tag | sed -Ee 's/v(.*)/\1/g' | sort -u))
-          LAST_TAG=$(git tag | sed -Ee 's/v(.*)/\1/g' | sort -Vru | head -1)
+          TAGS=($(git -C repo tag | sed -Ee 's/v(.*)/\1/g' | sort -u))
+          LAST_TAG=$(git -C repo tag | sed -Ee 's/v(.*)/\1/g' | sort -Vru | head -1)
           VERSIONS=($(xmllint --html --shell <(curl -sSL https://opensource.apple.com/source/xnu/) <<< 'cat .//a[starts-with(@href,"xnu")]/@href' | fgrep href | sed -Ee 's@.*xnu-([^"/]+)[/"].*@\1@g' | sort -u))
           DIFFERENCE=($(comm -13 <(for X in "${TAGS[@]}"; do echo "${X}"; done)  <(for X in "${VERSIONS[@]}"; do echo "${X}"; done) | sort -V))
           for ver in "${DIFFERENCE[@]}"; do [ "${LAST_TAG}" = "$(echo -e "${LAST_TAG}\n$ver" | sort -V | head -n1)" ] && curl -o "./data/xnu-${ver}.tgz" "https://opensource.apple.com/tarballs/xnu/xnu-${ver}.tar.gz"; done
